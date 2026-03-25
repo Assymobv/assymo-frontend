@@ -27,6 +27,7 @@ import type { DateAvailability } from "@/types/appointments";
 import { formatDateNL } from "@/lib/appointments/utils";
 import { actionVariants } from "../shared/Action";
 import { Label } from "../ui/label";
+import { TurnstileWidget, type TurnstileInstance } from "@/components/forms/TurnstileWidget";
 
 type FormStep = "datetime" | "details";
 
@@ -68,6 +69,8 @@ export function BookingForm({ className }: BookingFormProps) {
   const [error, setError] = useState<string | null>(null);
   const { track } = useTracking();
   const hasTrackedStart = useRef(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   // Fetch availability for a month range
   const fetchAvailability = useCallback(async (year: number, month: number) => {
@@ -154,7 +157,10 @@ export function BookingForm({ className }: BookingFormProps) {
       const response = await fetch("/api/appointments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          turnstile_token: turnstileToken,
+        }),
       });
 
       const data = await response.json();
@@ -182,6 +188,8 @@ export function BookingForm({ className }: BookingFormProps) {
       toast.error(
         err instanceof Error ? err.message : "Kon afspraak niet aanmaken",
       );
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
     } finally {
       setSubmitting(false);
     }
@@ -392,12 +400,19 @@ export function BookingForm({ className }: BookingFormProps) {
                   </div>
                 </div>
 
+                <TurnstileWidget
+                  ref={turnstileRef}
+                  onSuccess={setTurnstileToken}
+                  onError={() => setTurnstileToken(null)}
+                  onExpire={() => setTurnstileToken(null)}
+                />
+
                 {error && <FieldError>{error}</FieldError>}
 
                 <div className="flex flex-col gap-4">
                   <Button
                     type="submit"
-                    disabled={!isDetailsValid() || submitting}
+                    disabled={!isDetailsValid() || submitting || !turnstileToken}
                     className={actionVariants({ variant: "primary" })}
                   >
                     {submitting ? (

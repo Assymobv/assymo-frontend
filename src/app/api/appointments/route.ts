@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyTurnstile } from "@/lib/turnstile";
 import {
   createAppointment,
   isSlotAvailable,
@@ -33,6 +34,18 @@ import type { CreateAppointmentInput } from "@/types/appointments";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    // Verify Turnstile token (required — bots can't skip by omitting it)
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const clientIp = forwardedFor?.split(",")[0]?.trim();
+    const turnstileResult = await verifyTurnstile(body.turnstile_token, clientIp);
+    if (!turnstileResult.success) {
+      console.error("Turnstile verification failed:", turnstileResult.errorCodes);
+      return NextResponse.json(
+        { error: "Verificatie mislukt. Probeer het opnieuw." },
+        { status: 400 }
+      );
+    }
 
     // Validate required fields
     const requiredFields = [
@@ -113,10 +126,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get client IP for logging (optional)
-    const forwardedFor = request.headers.get("x-forwarded-for");
-    const ip = forwardedFor?.split(",")[0]?.trim() || null;
-
     // Create the appointment
     const input: CreateAppointmentInput = {
       appointment_date: body.appointment_date,
@@ -130,7 +139,7 @@ export async function POST(request: NextRequest) {
       remarks: body.remarks?.trim() || undefined,
     };
 
-    const appointment = await createAppointment(input, ip || undefined);
+    const appointment = await createAppointment(input, clientIp || undefined);
 
     // Send confirmation emails (don't block on email failures)
     sendNewAppointmentEmails(appointment).catch((err) => {
