@@ -3,6 +3,7 @@ import { resend } from "@/lib/resend";
 import { RESEND_CONFIG } from "@/config/resend";
 import { validateFormData, type Subject } from "@/config/contactForm";
 import { ContactFormEmail, ContactFormOfferteEmail } from "@/emails";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,6 +17,20 @@ export async function POST(req: NextRequest) {
     }
 
     const form = await req.formData();
+
+    // Verify Turnstile token
+    const turnstileToken = form.get("turnstile_token") as string;
+    const forwardedFor = req.headers.get("x-forwarded-for");
+    const clientIp = forwardedFor?.split(",")[0]?.trim();
+    const turnstileResult = await verifyTurnstile(turnstileToken, clientIp);
+    if (!turnstileResult.success) {
+      console.error("Turnstile verification failed:", turnstileResult.errorCodes);
+      return NextResponse.json(
+        { error: "Verificatie mislukt. Probeer het opnieuw." },
+        { status: 400 }
+      );
+    }
+
     const subject = (form.get("subject") as Subject) || "Algemeen";
 
     // Validate using config

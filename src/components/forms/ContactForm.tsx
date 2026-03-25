@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +22,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { CheckIcon, MailCheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTracking } from "@/lib/tracking";
+import { TurnstileWidget, type TurnstileInstance } from "@/components/forms/TurnstileWidget";
 import {
   getVisibleFieldsForProduct,
   getInitialFormData,
@@ -60,6 +61,8 @@ export default function ContactForm({ className, products = [], defaultProduct }
   const [status, setStatus] = useState<FormStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const { track } = useTracking();
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   const isSubmitting = status === "submitting";
   const isSuccess = status === "success";
@@ -103,6 +106,10 @@ export default function ContactForm({ className, products = [], defaultProduct }
         }
       });
 
+      if (turnstileToken) {
+        data.set("turnstile_token", turnstileToken);
+      }
+
       const res = await fetch("/api/contact", {
         method: "POST",
         body: data,
@@ -132,6 +139,8 @@ export default function ContactForm({ className, products = [], defaultProduct }
           ? err.message
           : "Er is iets misgegaan. Probeer later opnieuw.",
       );
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
     }
   }
 
@@ -263,11 +272,18 @@ export default function ContactForm({ className, products = [], defaultProduct }
       <FieldGroup>
         {visibleFields.map(renderField)}
 
+        <TurnstileWidget
+          ref={turnstileRef}
+          onSuccess={setTurnstileToken}
+          onError={() => setTurnstileToken(null)}
+          onExpire={() => setTurnstileToken(null)}
+        />
+
         {status === "error" && <FieldError>{errorMessage}</FieldError>}
 
         <Button
           type="submit"
-          disabled={isSubmitting || (!isSuccess && !isFormValid)}
+          disabled={isSubmitting || (!isSuccess && (!isFormValid || !turnstileToken))}
           className={cn(
             "w-fit px-3.5 py-2 flex items-center gap-1.5 text-accent-light bg-accent-dark transition-colors duration-250 hover:text-accent-dark hover:bg-accent-light rounded-full",
             isSubmitting &&
