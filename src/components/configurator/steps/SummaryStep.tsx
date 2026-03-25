@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react";
+import { TurnstileWidget, type TurnstileInstance } from "@/components/forms/TurnstileWidget";
 import type { WizardAnswers, ContactDetails } from "../Wizard";
 
 // =============================================================================
@@ -91,6 +92,10 @@ export function SummaryStep({
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
 
+  // Turnstile state
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
+
   // Calendar navigation
   const [calendarStartDate, setCalendarStartDate] = useState(() => {
     const today = new Date();
@@ -133,13 +138,13 @@ export function SummaryStep({
     fetchPrice();
   }, [selectedProduct, answers]);
 
-  // Submit quote when price is loaded and not yet submitted
+  // Submit quote when price is loaded, token is ready, and not yet submitted
   useEffect(() => {
-    if (price && submissionStatus === "idle") {
+    if (price && turnstileToken && submissionStatus === "idle") {
       submitQuote();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [price, submissionStatus]);
+  }, [price, turnstileToken, submissionStatus]);
 
   // Submit quote function
   const submitQuote = async (appointmentData?: {
@@ -166,6 +171,7 @@ export function SummaryStep({
             address: `${contactDetails.street}, ${contactDetails.postalCode} ${contactDetails.city}`,
           },
           appointment: appointmentData,
+          turnstile_token: appointmentData ? undefined : turnstileToken,
         }),
       });
 
@@ -198,6 +204,8 @@ export function SummaryStep({
           : "Er is iets misgegaan bij het versturen.",
       );
       setSubmissionStatus("error");
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
     }
   };
 
@@ -257,6 +265,7 @@ export function SummaryStep({
           customer_postal_code: contactDetails.postalCode,
           customer_city: contactDetails.city,
           remarks: `Offerte aanvraag via configurator - ${productName}`,
+          turnstile_token: turnstileToken,
         }),
       });
 
@@ -283,6 +292,8 @@ export function SummaryStep({
           ? err.message
           : "Er is iets misgegaan bij het boeken.",
       );
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
     } finally {
       setBookingLoading(false);
     }
@@ -371,13 +382,22 @@ export function SummaryStep({
             className="mt-3"
             onClick={() => {
               setSubmissionStatus("idle");
-              submitQuote();
+              turnstileRef.current?.reset();
+              setTurnstileToken(null);
             }}
           >
             Opnieuw proberen
           </Button>
         </div>
       )}
+
+      {/* Turnstile verification */}
+      <TurnstileWidget
+        ref={turnstileRef}
+        onSuccess={setTurnstileToken}
+        onError={() => setTurnstileToken(null)}
+        onExpire={() => setTurnstileToken(null)}
+      />
 
       {/* Price Card */}
       <Card className="bg-accent-dark text-accent-light">

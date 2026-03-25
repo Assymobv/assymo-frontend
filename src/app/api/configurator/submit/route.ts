@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyTurnstile } from "@/lib/turnstile";
 import { sql } from "@/lib/db";
 import { resend } from "@/lib/resend";
 import { RESEND_CONFIG, DEFAULT_TEST_EMAIL } from "@/config/resend";
@@ -62,6 +63,7 @@ interface SubmitRequestBody {
     id?: number;
   };
   site?: string;
+  turnstile_token?: string;
 }
 
 /**
@@ -77,6 +79,20 @@ export async function POST(request: NextRequest) {
   try {
     const body: SubmitRequestBody = await request.json();
     const { product_slug, answers, contact, appointment, site = "assymo" } = body;
+
+    // Verify Turnstile token (skip for re-submissions from bookAppointment flow when token is omitted)
+    if (body.turnstile_token) {
+      const forwardedFor = request.headers.get("x-forwarded-for");
+      const clientIp = forwardedFor?.split(",")[0]?.trim();
+      const turnstileResult = await verifyTurnstile(body.turnstile_token, clientIp);
+      if (!turnstileResult.success) {
+        console.error("Turnstile verification failed:", turnstileResult.errorCodes);
+        return NextResponse.json(
+          { error: "Verificatie mislukt. Probeer het opnieuw." },
+          { status: 400 }
+        );
+      }
+    }
 
     // Validate required fields
     if (!product_slug) {
