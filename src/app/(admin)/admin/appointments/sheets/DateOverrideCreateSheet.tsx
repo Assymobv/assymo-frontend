@@ -230,9 +230,11 @@ export function DateOverrideCreateSheet({
                         : t("admin.labels.date")}
                     </FieldLabel>
                     <DatePicker
-                      value={formData.date ? new Date(formData.date + "T00:00:00") : undefined}
+                      value={formData.date ? new Date(formData.date + "T12:00:00") : undefined}
                       onChange={(date) => {
-                        const dateStr = date ? date.toISOString().split("T")[0] : "";
+                        const dateStr = date
+                          ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+                          : "";
                         setFormData({ ...formData, date: dateStr });
                       }}
                       disablePast={exceptionType !== "yearly"}
@@ -261,9 +263,11 @@ export function DateOverrideCreateSheet({
                     <Field>
                       <FieldLabel>{t("admin.labels.endDate")}</FieldLabel>
                       <DatePicker
-                        value={formData.end_date ? new Date(formData.end_date + "T00:00:00") : undefined}
+                        value={formData.end_date ? new Date(formData.end_date + "T12:00:00") : undefined}
                         onChange={(date) => {
-                          const dateStr = date ? date.toISOString().split("T")[0] : "";
+                          const dateStr = date
+                            ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+                            : "";
                           setFormData({ ...formData, end_date: dateStr });
                         }}
                         disablePast={exceptionType !== "yearly"}

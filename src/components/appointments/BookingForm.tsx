@@ -125,6 +125,9 @@ export function BookingForm({ className }: BookingFormProps) {
     }));
     track("booking_date_selected", { date, time });
     setCurrentStep("details");
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
   };
 
   const handleMonthChange = (year: number, month: number) => {
