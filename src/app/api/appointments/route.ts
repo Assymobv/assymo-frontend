@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { buildBookingSource } from "@/lib/appointments/source";
 import {
   createAppointment,
   isSlotAvailable,
@@ -139,7 +140,18 @@ export async function POST(request: NextRequest) {
       remarks: body.remarks?.trim() || undefined,
     };
 
-    const appointment = await createAppointment(input, clientIp || undefined);
+    // Capture booking source (client first-touch referrer + server user-agent)
+    // for traffic-source analysis. No new PII beyond what is already stored (IP).
+    const bookingSource = buildBookingSource(
+      body.source,
+      request.headers.get("user-agent")
+    );
+
+    const appointment = await createAppointment(
+      input,
+      clientIp || undefined,
+      bookingSource
+    );
 
     // Send confirmation emails (don't block on email failures)
     sendNewAppointmentEmails(appointment).catch((err) => {

@@ -71,6 +71,11 @@ export function BookingForm({ className }: BookingFormProps) {
   const hasTrackedStart = useRef(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
+  // First-touch source of this booking, captured once on mount. Visitors land
+  // directly on /afspraak, so document.referrer here is the true external source.
+  const bookingSource = useRef<{ referrer: string; landing_url: string } | null>(
+    null,
+  );
 
   // Fetch availability for a month range
   const fetchAvailability = useCallback(async (year: number, month: number) => {
@@ -108,11 +113,17 @@ export function BookingForm({ className }: BookingFormProps) {
     fetchAvailability(now.getFullYear(), now.getMonth());
   }, [fetchAvailability]);
 
-  // Track booking started (once)
+  // Track booking started (once) and capture first-touch source
   useEffect(() => {
     if (!hasTrackedStart.current) {
       track("booking_started");
       hasTrackedStart.current = true;
+    }
+    if (bookingSource.current === null) {
+      bookingSource.current = {
+        referrer: document.referrer || "",
+        landing_url: window.location.href || "",
+      };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -163,6 +174,7 @@ export function BookingForm({ className }: BookingFormProps) {
         body: JSON.stringify({
           ...formData,
           turnstile_token: turnstileToken,
+          source: bookingSource.current,
         }),
       });
 

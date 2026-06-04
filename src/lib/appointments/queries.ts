@@ -565,7 +565,8 @@ export async function getBookedSlotsInRange(
  */
 export async function createAppointment(
   input: CreateAppointmentInput,
-  ipAddress?: string
+  ipAddress?: string,
+  bookingSource?: object
 ): Promise<Appointment> {
   const editToken = generateEditToken();
 
@@ -582,7 +583,8 @@ export async function createAppointment(
       customer_city,
       remarks,
       edit_token,
-      ip_address
+      ip_address,
+      booking_source
     )
     VALUES (
       ${input.appointment_date}::date,
@@ -596,7 +598,8 @@ export async function createAppointment(
       ${input.customer_city},
       ${input.remarks ?? null},
       ${editToken},
-      ${ipAddress ?? null}
+      ${ipAddress ?? null},
+      ${bookingSource ? JSON.stringify(bookingSource) : null}::jsonb
     )
     RETURNING
       id,

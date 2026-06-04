@@ -10,8 +10,9 @@ import OpeningHoursDisplay from "@/components/shared/OpeningHoursDisplay";
 import { Separator } from "@/components/ui/separator";
 
 export const metadata = buildMetadata({
-  title: "Maak een afspraak",
-  description: "Breng een bezoekje aan onze toonzaal.",
+  title: "Afspraak maken bij Assymo – tuinhuizen, carports & poorten",
+  description:
+    "Plan een bezoek aan de Assymo-toonzaal in Sint-Job-in-'t-Goor voor uw tuinhuis, carport, poort of overkapping op maat.",
   path: "/afspraak",
 });
 
