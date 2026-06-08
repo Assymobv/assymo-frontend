@@ -23,6 +23,7 @@ const mockAppointment: Appointment = {
   updated_at: new Date('2025-01-10'),
   cancelled_at: null,
   reminder_sent_at: null,
+  deleted_at: null,
 }
 
 describe('generateICS', () => {

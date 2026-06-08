@@ -253,6 +253,7 @@ export const ADMIN_STRINGS = {
       appointmentCreated: "Afspraak aangemaakt",
       appointmentUpdated: "Afspraak bijgewerkt",
       appointmentCancelled: "Afspraak geannuleerd",
+      appointmentDeleted: "Afspraak verwijderd",
       overrideAdded: "Uitzondering toegevoegd",
       overrideDeleted: "Uitzondering verwijderd",
       categoryUpdated: "Categorie bijgewerkt",
@@ -877,6 +878,10 @@ export const ADMIN_STRINGS = {
       cancelAppointmentDesc:
         "Weet je zeker dat je deze afspraak wilt annuleren? De klant ontvangt een annuleringsmail.",
       yesCancel: "Ja, annuleer",
+      deleteAppointmentQuestion: "Afspraak verwijderen?",
+      deleteAppointmentDesc:
+        "De afspraak verdwijnt uit het overzicht en het tijdslot komt weer vrij. De klant ontvangt een annuleringsmail. De gegevens blijven bewaard in de database.",
+      yesDelete: "Ja, verwijder",
       createdOn: "Aangemaakt op",
       noCategoriesDesc:
         "Maak je eerste categorie aan om filters te organiseren.",
@@ -936,7 +941,9 @@ export const ADMIN_STRINGS = {
       siteCouldNotDelete: "Kon site niet verwijderen",
       appointmentCouldNotUpdate: "Kon afspraak niet bijwerken",
       appointmentCouldNotCancel: "Kon afspraak niet annuleren",
+      appointmentCouldNotDelete: "Kon afspraak niet verwijderen",
       cancelAppointment: "Afspraak annuleren",
+      deleteAppointment: "Afspraak verwijderen",
       overrideCouldNotAdd: "Kon uitzondering niet toevoegen",
       overrideCouldNotDelete: "Kon uitzondering niet verwijderen",
       siteUpdated: "Site bijgewerkt",

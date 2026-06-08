@@ -56,6 +56,7 @@ import {
   Loader2Icon,
   PencilIcon,
   PrinterIcon,
+  Trash2Icon,
   UserIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -81,6 +82,8 @@ export function AppointmentEditSheet({
   const [saving, setSaving] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Local copy of appointment data for display (updated after save)
   const [displayData, setDisplayData] = useState<Appointment | null>(null);
@@ -202,6 +205,35 @@ export function AppointmentEditSheet({
     } finally {
       setCancelling(false);
       setShowCancelConfirm(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!appointment) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch(
+        `/api/admin/appointments/${appointment.id}?archive=true&notify=true`,
+        { method: "DELETE" },
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to delete");
+      }
+
+      toast.success(t("admin.messages.appointmentDeleted"));
+      onOpenChange(false);
+      onUpdate();
+    } catch (error) {
+      console.error("Failed to delete appointment:", error);
+      toast.error(
+        error instanceof Error ? error.message : t("admin.misc.appointmentCouldNotDelete"),
+      );
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -639,6 +671,13 @@ export function AppointmentEditSheet({
                         {t("admin.misc.cancelAppointment")}
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2Icon className="size-4 text-destructive" />
+                      {t("admin.misc.deleteAppointment")}
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
@@ -668,6 +707,32 @@ export function AppointmentEditSheet({
             >
               {cancelling && <Loader2Icon className="size-4 animate-spin" />}
               {t("admin.misc.yesCancel")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog
+        open={showDeleteConfirm}
+        onOpenChange={(open) => !open && setShowDeleteConfirm(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("admin.misc.deleteAppointmentQuestion")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("admin.misc.deleteAppointmentDesc")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{t("admin.buttons.back")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting && <Loader2Icon className="size-4 animate-spin" />}
+              {t("admin.misc.yesDelete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

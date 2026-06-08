@@ -4,7 +4,7 @@ import {
   getAppointmentById,
   updateAppointment,
   cancelAppointment,
-  deleteAppointment,
+  softDeleteAppointment,
   isSlotAvailable,
   sendUpdateEmail,
   sendCancellationEmail,
@@ -233,10 +233,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 /**
  * DELETE /api/admin/appointments/[id]
  *
- * Cancel or permanently delete an appointment.
+ * Cancel or archive (soft-delete) an appointment. No row is ever physically
+ * removed from the database.
  *
  * Query parameters:
- * - hard: If "true", permanently delete instead of soft cancel
+ * - archive: If "true", archive the appointment (sets deleted_at — it disappears
+ *   from all views and frees the slot, but the record is preserved/recoverable).
+ *   Otherwise the appointment is soft-cancelled (status = 'cancelled', stays visible).
  * - notify: If "true", send cancellation email to customer
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
@@ -264,12 +267,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     const { searchParams } = new URL(request.url);
-    const hardDelete = searchParams.get("hard") === "true";
+    const archive = searchParams.get("archive") === "true";
     const notify = searchParams.get("notify") === "true";
 
-    if (hardDelete) {
-      // Permanent delete
-      const deleted = await deleteAppointment(appointmentId);
+    if (archive) {
+      // Archive (soft-delete): preserves the row, hides it everywhere, frees the slot.
+      const deleted = await softDeleteAppointment(appointmentId);
 
       if (!deleted) {
         return NextResponse.json(
@@ -278,9 +281,16 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         );
       }
 
+      // Notify the customer of the deletion (reuse cancellation email).
+      if (notify) {
+        sendCancellationEmail(deleted).catch((err) => {
+          console.error("Failed to send cancellation email:", err);
+        });
+      }
+
       return NextResponse.json({
         success: true,
-        message: "Afspraak permanent verwijderd",
+        message: "Afspraak verwijderd",
       });
     } else {
       // Soft cancel

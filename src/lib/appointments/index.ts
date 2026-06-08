@@ -22,7 +22,7 @@ export {
   createAppointment,
   updateAppointment,
   cancelAppointment,
-  deleteAppointment,
+  softDeleteAppointment,
   searchAppointments,
   getUpcomingAppointmentsCount,
 } from "./queries";

@@ -359,6 +359,7 @@ export async function getAppointmentsByDateRange(
       WHERE appointment_date >= ${startDate}::date
         AND appointment_date <= ${endDate}::date
         AND status = ${status}
+        AND deleted_at IS NULL
       ORDER BY appointment_date, appointment_time
     `;
     return rows as Appointment[];
@@ -384,10 +385,12 @@ export async function getAppointmentsByDateRange(
       created_at,
       updated_at,
       cancelled_at,
-      reminder_sent_at
+      reminder_sent_at,
+      deleted_at
     FROM appointments
     WHERE appointment_date >= ${startDate}::date
       AND appointment_date <= ${endDate}::date
+      AND deleted_at IS NULL
     ORDER BY appointment_date, appointment_time
   `;
 
@@ -421,8 +424,10 @@ export async function getAllAppointments(
       created_at,
       updated_at,
       cancelled_at,
-      reminder_sent_at
+      reminder_sent_at,
+      deleted_at
     FROM appointments
+    WHERE deleted_at IS NULL
     ORDER BY appointment_date DESC, appointment_time DESC
     LIMIT ${limit}
     OFFSET ${offset}
@@ -457,7 +462,8 @@ export async function getAppointmentById(
       created_at,
       updated_at,
       cancelled_at,
-      reminder_sent_at
+      reminder_sent_at,
+      deleted_at
     FROM appointments
     WHERE id = ${id}
   `;
@@ -491,9 +497,11 @@ export async function getAppointmentByToken(
       created_at,
       updated_at,
       cancelled_at,
-      reminder_sent_at
+      reminder_sent_at,
+      deleted_at
     FROM appointments
     WHERE edit_token = ${token}
+      AND deleted_at IS NULL
   `;
 
   return (rows[0] as Appointment) || null;
@@ -511,6 +519,7 @@ export async function isSlotBooked(
     WHERE appointment_date = ${date}::date
       AND appointment_time = ${time}::time
       AND status != 'cancelled'
+      AND deleted_at IS NULL
     LIMIT 1
   `;
 
@@ -526,6 +535,7 @@ export async function getBookedSlots(date: string): Promise<string[]> {
     FROM appointments
     WHERE appointment_date = ${date}::date
       AND status != 'cancelled'
+      AND deleted_at IS NULL
   `;
 
   return rows.map((row) => (row as { time: string }).time);
@@ -544,6 +554,7 @@ export async function getBookedSlotsInRange(
     WHERE appointment_date >= ${startDate}::date
       AND appointment_date <= ${endDate}::date
       AND status != 'cancelled'
+      AND deleted_at IS NULL
   `;
 
   const map = new Map<string, string[]>();
@@ -620,7 +631,8 @@ export async function createAppointment(
       created_at,
       updated_at,
       cancelled_at,
-      reminder_sent_at
+      reminder_sent_at,
+      deleted_at
   `;
 
   return rows[0] as Appointment;
@@ -722,7 +734,8 @@ export async function updateAppointment(
       created_at,
       updated_at,
       cancelled_at,
-      reminder_sent_at
+      reminder_sent_at,
+      deleted_at
   `;
 
   return (rows[0] as Appointment) || null;
@@ -758,23 +771,57 @@ export async function cancelAppointment(id: number): Promise<Appointment | null>
       created_at,
       updated_at,
       cancelled_at,
-      reminder_sent_at
+      reminder_sent_at,
+      deleted_at
   `;
 
   return (rows[0] as Appointment) || null;
 }
 
 /**
- * Delete an appointment (hard delete - use cancelAppointment for soft delete)
+ * Soft-delete (archive) an appointment.
+ *
+ * Sets `deleted_at` so the appointment disappears from all admin views,
+ * availability calculations and public token access, while the row is
+ * preserved in the database (recoverable, never physically removed).
+ *
+ * Use `cancelAppointment` for the lighter "cancelled" state (record stays
+ * visible but greyed out).
  */
-export async function deleteAppointment(id: number): Promise<boolean> {
-  const result = await sql`
-    DELETE FROM appointments
+export async function softDeleteAppointment(
+  id: number
+): Promise<Appointment | null> {
+  const rows = await sql`
+    UPDATE appointments
+    SET
+      deleted_at = NOW(),
+      updated_at = NOW()
     WHERE id = ${id}
-    RETURNING id
+      AND deleted_at IS NULL
+    RETURNING
+      id,
+      appointment_date::text,
+      appointment_time::text,
+      duration_minutes,
+      customer_name,
+      customer_email,
+      customer_phone,
+      customer_street,
+      customer_postal_code,
+      customer_city,
+      remarks,
+      status,
+      edit_token,
+      admin_notes,
+      ip_address,
+      created_at,
+      updated_at,
+      cancelled_at,
+      reminder_sent_at,
+      deleted_at
   `;
 
-  return result.length > 0;
+  return (rows[0] as Appointment) || null;
 }
 
 /**
@@ -806,12 +853,16 @@ export async function searchAppointments(
       created_at,
       updated_at,
       cancelled_at,
-      reminder_sent_at
+      reminder_sent_at,
+      deleted_at
     FROM appointments
     WHERE
-      customer_name ILIKE ${searchPattern}
-      OR customer_email ILIKE ${searchPattern}
-      OR customer_phone ILIKE ${searchPattern}
+      deleted_at IS NULL
+      AND (
+        customer_name ILIKE ${searchPattern}
+        OR customer_email ILIKE ${searchPattern}
+        OR customer_phone ILIKE ${searchPattern}
+      )
     ORDER BY appointment_date DESC, appointment_time DESC
     LIMIT ${limit}
   `;
@@ -828,6 +879,7 @@ export async function getUpcomingAppointmentsCount(): Promise<number> {
     FROM appointments
     WHERE appointment_date >= CURRENT_DATE
       AND status = 'confirmed'
+      AND deleted_at IS NULL
   `;
 
   return Number((rows[0] as { count: string }).count);
@@ -875,9 +927,11 @@ export async function getAppointmentsNeedingReminder(
       created_at,
       updated_at,
       cancelled_at,
-      reminder_sent_at
+      reminder_sent_at,
+      deleted_at
     FROM appointments
     WHERE status = 'confirmed'
+      AND deleted_at IS NULL
       AND reminder_sent_at IS NULL
       -- Appointment is tomorrow (for 24h reminder)
       AND appointment_date = CURRENT_DATE + INTERVAL '1 day'

@@ -163,6 +163,7 @@ export function AppointmentView({
       updated_at: appointment.created_at,
       cancelled_at: null,
       reminder_sent_at: null,
+      deleted_at: null,
     };
 
     const icsContent = generateICS(fullAppointment);

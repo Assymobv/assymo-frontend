@@ -60,6 +60,7 @@ export interface Appointment {
   updated_at: Date;
   cancelled_at: Date | null;
   reminder_sent_at: Date | null;
+  deleted_at: Date | null;
 }
 
 export type AppointmentStatus = "confirmed" | "cancelled" | "completed";
